@@ -1,0 +1,57 @@
+name: SEO Linter
+
+on: 
+  push:
+    paths:
+      - 'content/**/*.md'
+  pull_request:
+    paths:
+      - 'content/**/*.md'
+
+jobs:
+  seo-lint:
+    runs-on: ubuntu-latest
+    
+    env:
+      LINT_ONLY_CHANGED_FILES: true  # Set to false to lint all files
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: 'content/**/*.md'
+          separator: ","
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-frontmatter
+
+      - name: Run SEO Linter on Changed Files
+        if: env.LINT_ONLY_CHANGED_FILES == 'true' && steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          set -e  # **Exit immediately if any command fails**
+          for file in $(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ',' ' '); do
+            echo "Linting $file"
+            python scripts/seo_linter.py "$file"
+          done
+
+      - name: Run SEO Linter on All Files
+        if: env.LINT_ONLY_CHANGED_FILES == 'false'
+        run: |
+          set -e  # **Exit immediately if any command fails**
+          for file in $(find content -name '*.md'); do
+            echo "Linting $file"
+            python scripts/seo_linter.py "$file"
+          done
